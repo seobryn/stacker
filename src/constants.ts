@@ -20,9 +20,9 @@ export enum MODES {
 }
 
 export const INIT_BOX_WIDTH = 200;
-export const INIT_BOX_Y = 700;
-
 export const BOX_HEIGHT = 50;
+
+export const INIT_BOX_Y = window.innerHeight - BOX_HEIGHT - 20;
 export const INIT_Y_SPEED = 5;
 export const INIT_X_SPEED = 3;
 export const BOX_OFFSET = 50;

@@ -13,19 +13,18 @@ import pkg from "../../package.json";
         font-family: Tahoma, Geneva, Verdana, sans-serif;
         user-select: none;
       }
-      body {
+      body,
+      html {
         margin: 0;
-        background-color: #333333;
+        background-color: #000;
 
         display: flex;
         align-items: center;
         justify-content: center;
 
-        height: 100vh;
-      }
-
-      #game {
-        border: 1px solid #fff;
+        height: 100dvh;
+        width: 100%;
+        overflow: hidden;
       }
 
       #controls {
@@ -87,6 +86,7 @@ import pkg from "../../package.json";
         justify-content: center;
         text-align: center;
       }
+
       .version {
         position: absolute;
         bottom: 10px;
@@ -94,6 +94,19 @@ import pkg from "../../package.json";
         color: rgba(255, 255, 255, 0.3);
         font-size: 12px;
         font-weight: 400;
+      }
+
+      .pause {
+        top: 10px;
+        right: 10px;
+        position: absolute;
+      }
+
+      @media screen {
+        .game-container {
+          width: 100%;
+          height: 100%;
+        }
       }
     </style>
     <script>
@@ -113,7 +126,7 @@ import pkg from "../../package.json";
   </head>
   <body>
     <div class="game-container">
-      <canvas id="game" width="460" height="800"></canvas>
+      <canvas id="game"></canvas>
       <label class="score">Score <span id="score-value">0</span></label>
       <label class="high-score"
         >High Score <span id="hscore-value">0</span></label

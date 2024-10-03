@@ -30,12 +30,17 @@ interface UI {
   $highScore: HTMLSpanElement;
   $canvas: HTMLCanvasElement;
   $ctx: CanvasRenderingContext2D;
+  $pause?: HTMLButtonElement;
 }
 
 let ui: UI | null = null;
 
 let eventsInitialized = false;
 let controlsShowed = true;
+let isMobile =
+  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
 
 let state: GameState = {
   boxes: [],
@@ -73,6 +78,25 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 }
 
+function handlePointerDown() {
+  if (!ui) return;
+
+  if (state.mode === MODES.BOUNCE) {
+    if (controlsShowed) {
+      ui.$controls.classList.add("hidden");
+      controlsShowed = false;
+    }
+    if (BG_SOUND.paused) {
+      BG_SOUND.play();
+    }
+    state.mode = MODES.FALL;
+  } else if (state.mode === MODES.GAME_OVER) {
+    _restart();
+  } else if (state.mode === MODES.PAUSE) {
+    state.mode = MODES.BOUNCE;
+  }
+}
+
 function initState() {
   if (!ui) return;
 
@@ -97,16 +121,35 @@ function initState() {
   createNewBox();
 }
 
+function setupPauseButton() {
+  if (!ui) return;
+  ui.$pause = document.createElement("button");
+  ui.$pause.innerHTML = "&#9208;";
+  ui.$pause.classList.add("pause");
+  ui.$pause.addEventListener("click", () => {
+    state.mode = MODES.PAUSE;
+  });
+  document.querySelector(".game-container")?.appendChild(ui.$pause);
+}
+
 function resetUI() {
   if (!ui) return;
-  const { $score, $highScore } = ui;
+
+  const { $score, $highScore, $controls, $canvas } = ui;
 
   const savedScore = +(localStorage.getItem("high-score") || "0");
   $score.textContent = "0";
   $highScore.textContent = savedScore > 0 ? String(savedScore) : "0";
 
   if (!eventsInitialized) {
-    document.addEventListener("keydown", handleKeyDown);
+    if (isMobile) {
+      controlsShowed = false;
+      $controls.classList.add("hidden");
+      $canvas.addEventListener("pointerdown", handlePointerDown);
+      setupPauseButton();
+    } else {
+      document.addEventListener("keydown", handleKeyDown);
+    }
     eventsInitialized = true;
   }
 }
@@ -140,6 +183,14 @@ export function restart(
     $ctx: ctx,
   };
 
+  if (isMobile) {
+    ui.$canvas.width = window.innerWidth;
+    ui.$canvas.height = window.innerHeight;
+  } else {
+    ui.$canvas.width = 460;
+    ui.$canvas.height = 800;
+  }
+
   _restart();
 }
 
@@ -162,9 +213,11 @@ function drawGameOver() {
   );
 
   $ctx.font = "20px Tahoma";
-  const $restartInfo = $ctx.measureText("PRESS R TO RESTART");
+  const $restartInfo = $ctx.measureText(
+    `${isMobile ? "TAP" : "PRESS R"} TO RESTART`,
+  );
   $ctx.fillText(
-    "PRESS R TO RESTART",
+    `${isMobile ? "TAP" : "PRESS R"} TO RESTART`,
     $canvas.width / 2 - $restartInfo.width / 2,
     $canvas.height / 2 + 70,
   );
@@ -213,15 +266,17 @@ function drawBackground() {
 function drawBoxes() {
   if (!ui) return;
 
-  const { $ctx } = ui;
+  const { $ctx, $canvas } = ui;
 
-  state.boxes.forEach((box) => {
+  for (let box of state.boxes) {
     const { x, y, width, color } = box;
     const newY = INIT_BOX_Y - y + state.cameraY;
 
+    if (newY > $canvas.height) continue;
+
     $ctx.fillStyle = color;
     $ctx.fillRect(x, newY, width, BOX_HEIGHT);
-  });
+  }
 }
 
 function drawDebris() {
