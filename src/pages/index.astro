@@ -1,16 +1,17 @@
 ---
-
+import pkg from "../../package.json";
 ---
 
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/stacker/favicon.svg" />
     <meta name="viewport" content="width=device-width" />
     <title>Stacker Game</title>
     <style is:global>
       * {
         font-family: Tahoma, Geneva, Verdana, sans-serif;
+        user-select: none;
       }
       body {
         margin: 0;
@@ -86,6 +87,14 @@
         justify-content: center;
         text-align: center;
       }
+      .version {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        color: rgba(255, 255, 255, 0.3);
+        font-size: 12px;
+        font-weight: 400;
+      }
     </style>
     <script>
       import { restart } from "../game/experience";
@@ -112,6 +121,9 @@
       <div id="controls">
         <p>Controls</p>
         <p>Arrow Down: Fall</p>
+      </div>
+      <div class="version">
+        v{pkg.version}
       </div>
     </div>
   </body>

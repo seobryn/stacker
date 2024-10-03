@@ -28,5 +28,5 @@ export const INIT_X_SPEED = 3;
 export const BOX_OFFSET = 50;
 export const DEFAULT_DEBRIS: Debris = { x: 0, y: 0, width: 0, color: "" };
 
-export const BG_SOUND = new Audio("/sounds/main-loop.wav");
-export const HIT_SOUND = new Audio("/sounds/click.wav");
+export const BG_SOUND = new Audio("/stacker/sounds/main-loop.wav");
+export const HIT_SOUND = new Audio("/stacker/sounds/click.wav");
