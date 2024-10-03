@@ -42,6 +42,8 @@ let isMobile =
     navigator.userAgent,
   );
 
+let INIT_BOX_Y_POS = INIT_BOX_Y;
+
 let state: GameState = {
   boxes: [],
   debris: null,
@@ -99,6 +101,8 @@ function handlePointerDown() {
 
 function initState() {
   if (!ui) return;
+
+  INIT_BOX_Y_POS = ui.$canvas.height - BOX_HEIGHT - BOX_OFFSET / 2;
 
   state = {
     boxes: [
@@ -270,9 +274,9 @@ function drawBoxes() {
 
   for (let box of state.boxes) {
     const { x, y, width, color } = box;
-    const newY = INIT_BOX_Y - y + state.cameraY;
+    const newY = INIT_BOX_Y_POS - y + state.cameraY;
 
-    if (newY > $canvas.height) continue;
+    //if (newY > $canvas.height) continue;
 
     $ctx.fillStyle = color;
     $ctx.fillRect(x, newY, width, BOX_HEIGHT);
@@ -284,7 +288,7 @@ function drawDebris() {
   const { $ctx } = ui;
 
   const { x, y, color, width } = state.debris;
-  const newY = INIT_BOX_Y - y + state.cameraY;
+  const newY = INIT_BOX_Y_POS - y + state.cameraY;
 
   $ctx.fillStyle = color;
   $ctx.fillRect(x, newY, width, BOX_HEIGHT);
