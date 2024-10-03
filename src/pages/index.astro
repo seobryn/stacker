@@ -3,14 +3,116 @@
 ---
 
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Stacker Game</title>
+    <style is:global>
+      * {
+        font-family: Tahoma, Geneva, Verdana, sans-serif;
+      }
+      body {
+        margin: 0;
+        background-color: #333333;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        height: 100vh;
+      }
+
+      #game {
+        border: 1px solid #fff;
+      }
+
+      #controls {
+        position: absolute;
+        color: #fff;
+        font-size: 20px;
+        font-weight: 600;
+        z-index: 1;
+
+        background-color: rgba(255, 255, 255, 0.6);
+        padding: 0.5rem;
+        border-radius: 10px;
+      }
+
+      .btn-restart {
+        width: 300px;
+        height: 40px;
+        border: 0;
+        border-radius: 5px;
+        background-color: #fff;
+        position: absolute;
+        top: 60%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 20px;
+        font-weight: 600;
+        color: #333333;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .score {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: #fff;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .high-score {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: #fff;
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      .game-container {
+        position: relative;
+        width: 460px;
+        height: 800px;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+    </style>
+    <script>
+      import { restart } from "../game/experience";
+      const $ = (selector: string): HTMLElement | null =>
+        document.querySelector(selector);
+
+      // HTML Elements
+      const $canvas = $("#game") as HTMLCanvasElement;
+      const $score = $("#score-value") as HTMLSpanElement;
+      const $highScore = $("#hscore-value") as HTMLSpanElement;
+      const $controls = $("#controls") as HTMLDivElement;
+      const $ctx = $canvas.getContext("2d") as CanvasRenderingContext2D;
+
+      restart($controls, $score, $highScore, $canvas, $ctx);
+    </script>
+  </head>
+  <body>
+    <div class="game-container">
+      <canvas id="game" width="460" height="800"></canvas>
+      <label class="score">Score <span id="score-value">0</span></label>
+      <label class="high-score"
+        >High Score <span id="hscore-value">0</span></label
+      >
+      <div id="controls">
+        <p>Controls</p>
+        <p>Arrow Down: Fall</p>
+      </div>
+    </div>
+  </body>
 </html>
