@@ -11,7 +11,7 @@ import {
   INIT_BOX_Y,
   BOX_OFFSET,
 } from "../constants";
-import { randomColor } from "./utils";
+import { randomBetween, randomColor } from "./utils";
 
 interface GameState {
   boxes: Box[];
@@ -259,11 +259,21 @@ function createNewDebris(diff: number) {
   };
 }
 
-function drawBackground() {
+function drawBackground(score: number) {
   if (!ui) return;
   const { $canvas, $ctx } = ui;
 
-  $ctx.fillStyle = "black";
+  if (score < 10) {
+    $ctx.fillStyle = "black";
+  } else if (score < 20) {
+    $ctx.fillStyle = "#111111";
+  } else if (score < 30) {
+    $ctx.fillStyle = `#333333`;
+  } else if (score < 40) {
+    $ctx.fillStyle = `#555555`;
+  } else if (score > 50) {
+    $ctx.fillStyle = `#999999`;
+  }
   $ctx.fillRect(0, 0, $canvas.width, $canvas.height);
 }
 
@@ -411,7 +421,7 @@ function draw() {
   if (state.mode === MODES.PAUSE) {
     drawPause();
   } else {
-    drawBackground();
+    drawBackground(state.current - 1);
     drawBoxes();
     drawDebris();
     drawScore();
