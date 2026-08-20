@@ -30,6 +30,7 @@ interface GameState {
   speedBonus: number;
   sizeBonus: number;
   particles: Particle[];
+  powerupFeedback: { type: "size" | "speed"; frames: number } | null;
 }
 
 interface Particle {
@@ -83,6 +84,7 @@ let state: GameState = {
   speedBonus: 0,
   sizeBonus: 0,
   particles: [],
+  powerupFeedback: null,
 };
 
 function handleKeyDown(e: KeyboardEvent) {
@@ -157,6 +159,7 @@ function initState() {
     speedBonus: 0,
     sizeBonus: 0,
     particles: [],
+    powerupFeedback: null,
   };
 
   createNewBox();
@@ -321,6 +324,11 @@ function spawnParticles(x: number, y: number, color: string, count: number) {
       maxLife: 1,
     });
   }
+}
+
+function triggerPowerupFeedback(type: "size" | "speed") {
+  state.powerupFeedback = { type, frames: 60 };
+  spawnParticles(ui!.$canvas.width / 2, ui!.$canvas.height / 2, type === "size" ? "#00ff88" : "#00d4ff", 20);
 }
 
 function updateParticles() {
@@ -560,6 +568,39 @@ function updateProgressBar() {
   $progress.style.height = `${progressPercent}%`;
 }
 
+function drawPowerupFeedback() {
+  if (!ui || !state.powerupFeedback) return;
+  const { $ctx, $canvas } = ui;
+  const { type, frames } = state.powerupFeedback;
+
+  const progress = frames / 60;
+  const alpha = progress;
+  const scale = 1 + (1 - progress) * 0.3;
+  const yOffset = (1 - progress) * 30;
+
+  $ctx.save();
+  $ctx.globalAlpha = alpha;
+  $ctx.translate($canvas.width / 2, $canvas.height / 2 - 80 - yOffset);
+  $ctx.scale(scale, scale);
+
+  const text = type === "size" ? "SIZE UP!" : "SPEED UP!";
+  const color = type === "size" ? "#00ff88" : "#00d4ff";
+
+  $ctx.shadowColor = color;
+  $ctx.shadowBlur = 20;
+  $ctx.fillStyle = color;
+  $ctx.font = "16px 'Press Start 2P'";
+  $ctx.textAlign = "center";
+  $ctx.fillText(text, 0, 0);
+
+  $ctx.restore();
+
+  state.powerupFeedback.frames--;
+  if (state.powerupFeedback.frames <= 0) {
+    state.powerupFeedback = null;
+  }
+}
+
 function moveAndCheckCollision() {
   if (!ui) return;
   const { $canvas } = ui;
@@ -625,9 +666,11 @@ function boxHit(currentBox: Box) {
         }
 
         state.comboThreshold += 1;
+        POWERUP_SOUND.volume = 0.3;
         POWERUP_SOUND.pause();
         POWERUP_SOUND.currentTime = 0;
         POWERUP_SOUND.play();
+        triggerPowerupFeedback(bonus);
       }
 
       state.combo = 0;
@@ -722,6 +765,7 @@ function draw() {
     drawBoxes();
     drawDebris();
     drawParticles();
+    drawPowerupFeedback();
     drawScore();
     updateComboBar();
     updateProgressBar();
@@ -740,6 +784,7 @@ function draw() {
     drawDebris();
     updateParticles();
     drawParticles();
+    drawPowerupFeedback();
     drawScore();
     updateComboBar();
     updateProgressBar();
