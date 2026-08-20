@@ -22,6 +22,27 @@ interface GameState {
   ySpeed: number;
   scrollCount: number;
   cameraY: number;
+  combo: number;
+  maxHeight: number;
+  slowMoFrames: number;
+  comboThreshold: number;
+  speedBonus: number;
+  sizeBonus: number;
+  particles: Particle[];
+}
+
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  alpha: number;
+  size: number;
+  rotation: number;
+  rotationSpeed: number;
+  life: number;
+  maxLife: number;
 }
 
 interface UI {
@@ -30,7 +51,8 @@ interface UI {
   $highScore: HTMLSpanElement;
   $canvas: HTMLCanvasElement;
   $ctx: CanvasRenderingContext2D;
-  $pause?: HTMLButtonElement;
+  $combo: HTMLDivElement;
+  $progress: HTMLDivElement;
 }
 
 let ui: UI | null = null;
@@ -53,6 +75,13 @@ let state: GameState = {
   ySpeed: INIT_Y_SPEED,
   scrollCount: 0,
   cameraY: 0,
+  combo: 0,
+  maxHeight: 0,
+  slowMoFrames: 0,
+  comboThreshold: 3,
+  speedBonus: 0,
+  sizeBonus: 0,
+  particles: [],
 };
 
 function handleKeyDown(e: KeyboardEvent) {
@@ -120,6 +149,13 @@ function initState() {
     ySpeed: INIT_Y_SPEED,
     scrollCount: 0,
     cameraY: 0,
+    combo: 0,
+    maxHeight: 0,
+    slowMoFrames: 0,
+    comboThreshold: 3,
+    speedBonus: 0,
+    sizeBonus: 0,
+    particles: [],
   };
 
   createNewBox();
@@ -127,23 +163,25 @@ function initState() {
 
 function setupPauseButton() {
   if (!ui) return;
-  ui.$pause = document.createElement("button");
-  ui.$pause.innerHTML = "&#9208;";
-  ui.$pause.classList.add("pause");
-  ui.$pause.addEventListener("click", () => {
-    state.mode = MODES.PAUSE;
-  });
-  document.querySelector(".game-container")?.appendChild(ui.$pause);
+  const pauseBtn = document.querySelector("#pause-btn") as HTMLButtonElement;
+  if (pauseBtn) {
+    pauseBtn.addEventListener("click", () => {
+      state.mode = MODES.PAUSE;
+    });
+  }
 }
 
 function resetUI() {
   if (!ui) return;
 
-  const { $score, $highScore, $controls, $canvas } = ui;
+  const { $score, $highScore, $controls, $canvas, $combo, $progress } = ui;
 
   const savedScore = +(localStorage.getItem("high-score") || "0");
   $score.textContent = "0";
   $highScore.textContent = savedScore > 0 ? String(savedScore) : "0";
+  $combo.style.width = "0%";
+  $combo.classList.remove("maxed");
+  $progress.style.height = "0%";
 
   if (!eventsInitialized) {
     if (isMobile) {
@@ -178,22 +216,26 @@ export function restart(
   highScore: HTMLSpanElement,
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
+  combo: HTMLDivElement,
+  progress: HTMLDivElement,
 ) {
+  if (isMobile) {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  } else {
+    canvas.width = 460;
+    canvas.height = 800;
+  }
+
   ui = {
     $controls: controls,
     $score: score,
     $highScore: highScore,
     $canvas: canvas,
     $ctx: ctx,
+    $combo: combo,
+    $progress: progress,
   };
-
-  if (isMobile) {
-    ui.$canvas.width = window.innerWidth;
-    ui.$canvas.height = window.innerHeight;
-  } else {
-    ui.$canvas.width = 460;
-    ui.$canvas.height = 800;
-  }
 
   _restart();
 }
@@ -204,28 +246,29 @@ function drawGameOver() {
   const { $ctx, $canvas, $highScore, $score } = ui;
   BG_SOUND.pause();
 
-  $ctx.fillStyle = "#250206";
+  const gradient = $ctx.createLinearGradient(0, 0, 0, $canvas.height);
+  gradient.addColorStop(0, "#1a0a2e");
+  gradient.addColorStop(1, "#0a0a1a");
+  $ctx.fillStyle = gradient;
   $ctx.fillRect(0, 0, $canvas.width, $canvas.height);
-  $ctx.textRendering = "optimizeLegibility";
-  $ctx.fillStyle = "white";
-  $ctx.font = "60px Tahoma";
-  const $textInfo = $ctx.measureText("GAME OVER");
-  $ctx.fillText(
-    "GAME OVER",
-    $canvas.width / 2 - $textInfo.width / 2,
-    $canvas.height / 2,
-  );
 
-  $ctx.font = "20px Tahoma";
-  const $restartInfo = $ctx.measureText(
-    `${isMobile ? "TAP" : "PRESS R"} TO RESTART`,
-  );
+  $ctx.shadowColor = "#ff6b9d";
+  $ctx.shadowBlur = 30;
+  $ctx.fillStyle = "#ff6b9d";
+  $ctx.font = "20px 'Press Start 2P'";
+  $ctx.textAlign = "center";
+  $ctx.fillText("GAME OVER", $canvas.width / 2, $canvas.height / 2 - 30);
+
+  $ctx.shadowBlur = 0;
+  $ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+  $ctx.font = "12px 'Press Start 2P'";
   $ctx.fillText(
     `${isMobile ? "TAP" : "PRESS R"} TO RESTART`,
-    $canvas.width / 2 - $restartInfo.width / 2,
-    $canvas.height / 2 + 70,
+    $canvas.width / 2,
+    $canvas.height / 2 + 40,
   );
 
+  $ctx.textAlign = "left";
   $highScore.textContent = String(
     Math.max(+$score.innerText, +$highScore.innerText),
   );
@@ -259,22 +302,156 @@ function createNewDebris(diff: number) {
   };
 }
 
+function spawnParticles(x: number, y: number, color: string, count: number) {
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const speed = 2 + Math.random() * 4;
+    state.particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      color,
+      alpha: 1,
+      size: 4 + Math.random() * 6,
+      rotation: Math.random() * Math.PI * 2,
+      rotationSpeed: (Math.random() - 0.5) * 0.3,
+      life: 1,
+      maxLife: 1,
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const p = state.particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.15;
+    p.rotation += p.rotationSpeed;
+    p.life -= 0.025;
+    p.alpha = p.life;
+
+    if (p.life <= 0) {
+      state.particles.splice(i, 1);
+    }
+  }
+}
+
+function drawParticles() {
+  if (!ui) return;
+  const { $ctx } = ui;
+
+  for (const p of state.particles) {
+    $ctx.save();
+    $ctx.translate(p.x, p.y);
+    $ctx.rotate(p.rotation);
+    $ctx.globalAlpha = p.alpha;
+    $ctx.shadowColor = p.color;
+    $ctx.shadowBlur = 8;
+    $ctx.fillStyle = p.color;
+    $ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+    $ctx.restore();
+  }
+  $ctx.globalAlpha = 1;
+}
+
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : null;
+}
+
+function parseRgbaColor(color: string): {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+} {
+  if (color.startsWith("rgba(")) {
+    const parts = color.replace("rgba(", "").replace(")", "").split(",");
+    return {
+      r: parseInt(parts[0].trim()),
+      g: parseInt(parts[1].trim()),
+      b: parseInt(parts[2].trim()),
+      a: parseFloat(parts[3].trim()),
+    };
+  }
+  if (color.startsWith("rgb(")) {
+    const parts = color.replace("rgb(", "").replace(")", "").split(",");
+    return {
+      r: parseInt(parts[0].trim()),
+      g: parseInt(parts[1].trim()),
+      b: parseInt(parts[2].trim()),
+      a: 1,
+    };
+  }
+  const rgb = hexToRgb(color);
+  if (rgb) {
+    return { ...rgb, a: 1 };
+  }
+  return { r: 255, g: 255, b: 255, a: 1 };
+}
+
 function drawBackground(score: number) {
   if (!ui) return;
   const { $canvas, $ctx } = ui;
 
+  const gradient = $ctx.createLinearGradient(0, 0, 0, $canvas.height);
   if (score < 10) {
-    $ctx.fillStyle = "black";
+    gradient.addColorStop(0, "#0a0a1a");
+    gradient.addColorStop(1, "#1a1a3a");
   } else if (score < 20) {
-    $ctx.fillStyle = "#111111";
+    gradient.addColorStop(0, "#0f0f2a");
+    gradient.addColorStop(1, "#252550");
   } else if (score < 30) {
-    $ctx.fillStyle = `#333333`;
+    gradient.addColorStop(0, "#151535");
+    gradient.addColorStop(1, "#303060");
   } else if (score < 40) {
-    $ctx.fillStyle = `#555555`;
-  } else if (score > 50) {
-    $ctx.fillStyle = `#999999`;
+    gradient.addColorStop(0, "#1a1a45");
+    gradient.addColorStop(1, "#404075");
+  } else {
+    gradient.addColorStop(0, "#252555");
+    gradient.addColorStop(1, "#505085");
   }
+  $ctx.fillStyle = gradient;
   $ctx.fillRect(0, 0, $canvas.width, $canvas.height);
+
+  $ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+  for (let i = 0; i < 50; i++) {
+    const x = (i * 97) % $canvas.width;
+    const y = (i * 73 + score * 2) % $canvas.height;
+    $ctx.beginPath();
+    $ctx.arc(x, y, 1, 0, Math.PI * 2);
+    $ctx.fill();
+  }
 }
 
 function drawBoxes() {
@@ -282,14 +459,57 @@ function drawBoxes() {
 
   const { $ctx, $canvas } = ui;
 
-  for (let box of state.boxes) {
+  for (let i = 0; i < state.boxes.length; i++) {
+    const box = state.boxes[i];
     const { x, y, width, color } = box;
     const newY = INIT_BOX_Y_POS - y + state.cameraY;
 
-    //if (newY > $canvas.height) continue;
+    const rgb = parseRgbaColor(color);
+    const lighterColor = `rgba(${Math.min(255, rgb.r + 80)}, ${Math.min(255, rgb.g + 80)}, ${Math.min(255, rgb.b + 80)}, ${rgb.a})`;
+    const baseColor = `rgba(${Math.min(255, rgb.r + 30)}, ${Math.min(255, rgb.g + 30)}, ${Math.min(255, rgb.b + 30)}, ${rgb.a})`;
+    const darkerColor = `rgba(${Math.max(0, rgb.r - 50)}, ${Math.max(0, rgb.g - 50)}, ${Math.max(0, rgb.b - 50)}, ${rgb.a})`;
 
-    $ctx.fillStyle = color;
-    $ctx.fillRect(x, newY, width, BOX_HEIGHT);
+    $ctx.shadowColor = color;
+    $ctx.shadowBlur = 20;
+    $ctx.shadowOffsetX = 0;
+    $ctx.shadowOffsetY = 6;
+
+    const gradient = $ctx.createLinearGradient(x, newY, x, newY + BOX_HEIGHT);
+    gradient.addColorStop(0, lighterColor);
+    gradient.addColorStop(0.3, baseColor);
+    gradient.addColorStop(0.7, color);
+    gradient.addColorStop(1, darkerColor);
+
+    $ctx.fillStyle = gradient;
+    drawRoundedRect($ctx, x, newY, width, BOX_HEIGHT, 6);
+
+    $ctx.shadowBlur = 0;
+    $ctx.shadowOffsetY = 0;
+
+    $ctx.strokeStyle = `rgba(255, 255, 255, 0.4)`;
+    $ctx.lineWidth = 2;
+    $ctx.stroke();
+
+    $ctx.save();
+    drawRoundedRect($ctx, x, newY, width, BOX_HEIGHT, 6);
+    $ctx.clip();
+    $ctx.strokeStyle = `rgba(255, 255, 255, 0.25)`;
+    $ctx.lineWidth = 3;
+    $ctx.beginPath();
+    for (let offset = -BOX_HEIGHT; offset < width + BOX_HEIGHT; offset += 10) {
+      $ctx.moveTo(x + offset, newY);
+      $ctx.lineTo(x + offset + BOX_HEIGHT, newY + BOX_HEIGHT);
+    }
+    $ctx.stroke();
+    $ctx.restore();
+
+    $ctx.strokeStyle = `rgba(255, 255, 255, 0.15)`;
+    $ctx.lineWidth = 1;
+    $ctx.beginPath();
+    $ctx.moveTo(x + 3, newY + 3);
+    $ctx.lineTo(x + width - 3, newY + 3);
+    $ctx.lineTo(x + width - 3, newY + BOX_HEIGHT - 3);
+    $ctx.stroke();
   }
 }
 
@@ -300,14 +520,43 @@ function drawDebris() {
   const { x, y, color, width } = state.debris;
   const newY = INIT_BOX_Y_POS - y + state.cameraY;
 
+  $ctx.shadowColor = color;
+  $ctx.shadowBlur = 20;
   $ctx.fillStyle = color;
-  $ctx.fillRect(x, newY, width, BOX_HEIGHT);
+  drawRoundedRect($ctx, x, newY, Math.abs(width), BOX_HEIGHT, 4);
+  $ctx.shadowBlur = 0;
 }
 
 function drawScore() {
   if (!ui) return;
   const { $score } = ui;
-  $score.textContent = String(state.current - 1);
+  const newScore = String(state.current - 1);
+  if ($score.textContent !== newScore) {
+    $score.textContent = newScore;
+    $score.classList.remove("score-pop");
+    void $score.offsetWidth;
+    $score.classList.add("score-pop");
+  }
+}
+
+function updateComboBar() {
+  if (!ui) return;
+  const { $combo } = ui;
+  const comboPercent = (state.combo / state.comboThreshold) * 100;
+  $combo.style.width = `${Math.min(comboPercent, 100)}%`;
+  if (state.combo >= state.comboThreshold) {
+    $combo.classList.add("maxed");
+  } else {
+    $combo.classList.remove("maxed");
+  }
+}
+
+function updateProgressBar() {
+  if (!ui) return;
+  const { $progress } = ui;
+  const maxPossibleHeight = 50;
+  const progressPercent = Math.min((state.maxHeight / maxPossibleHeight) * 100, 100);
+  $progress.style.height = `${progressPercent}%`;
 }
 
 function moveAndCheckCollision() {
@@ -349,15 +598,54 @@ function boxHit(currentBox: Box) {
   const diff = currentBox.x - prevBox.x;
 
   if (Math.abs(diff) >= currentBox.width) {
-    state.mode = MODES.GAME_OVER;
+    state.slowMoFrames = 30;
     return;
+  }
+
+  const accuracyThreshold = currentBox.width * 0.2;
+  if (Math.abs(diff) <= accuracyThreshold) {
+    state.combo += 1;
+
+    if (state.combo >= state.comboThreshold) {
+      if (state.current - 1 >= 15) {
+        const bonus = Math.random() < 0.5 ? "size" : "speed";
+
+        if (bonus === "size" && state.sizeBonus < 50) {
+          state.sizeBonus = Math.min(state.sizeBonus + 30, 50);
+          const currentWidth = state.boxes[state.current].width;
+          state.boxes[state.current].width = currentWidth + 30;
+          prevBox.width = currentWidth + 30;
+        } else if (bonus === "speed" && state.speedBonus < 2) {
+          state.speedBonus = Math.min(state.speedBonus + 0.5, 2);
+          const newSpeed = INIT_X_SPEED - state.speedBonus;
+          if (newSpeed < state.xSpeed) {
+            state.xSpeed = Math.max(newSpeed, INIT_X_SPEED - 2);
+          }
+        }
+
+        state.comboThreshold += 1;
+      }
+
+      state.combo = 0;
+    }
+  } else {
+    state.combo = 0;
   }
 
   fixBoxSize(diff);
 
+  const landingX = currentBox.x + currentBox.width / 2;
+  const screenY = INIT_BOX_Y_POS - currentBox.y + state.cameraY + BOX_HEIGHT / 2;
+  spawnParticles(landingX, screenY, currentBox.color, 12);
+
   state.xSpeed += state.xSpeed > 0 ? 0.5 : -0.5;
+  if (state.xSpeed < 1) state.xSpeed = 1;
   state.current += 1;
   state.scrollCount += BOX_HEIGHT;
+
+  if (state.current - 1 > state.maxHeight) {
+    state.maxHeight = state.current - 1;
+  }
 
   HIT_SOUND.pause();
   HIT_SOUND.currentTime = 0;
@@ -391,21 +679,26 @@ function drawPause() {
   if (!ui) return;
   const { $ctx, $canvas } = ui;
 
-  $ctx.fillStyle = "white";
-  $ctx.textRendering = "optimizeLegibility";
-  $ctx.font = "20px Tahoma";
-  const $pauseInfo = $ctx.measureText("PAUSED");
+  $ctx.fillStyle = "rgba(10, 10, 30, 0.7)";
+  $ctx.fillRect(0, 0, $canvas.width, $canvas.height);
+
+  $ctx.shadowColor = "#00d4ff";
+  $ctx.shadowBlur = 20;
+  $ctx.fillStyle = "#00d4ff";
+  $ctx.font = "16px 'Press Start 2P'";
+  $ctx.textAlign = "center";
+  $ctx.fillText("PAUSED", $canvas.width / 2, $canvas.height / 2 - 20);
+
+  $ctx.shadowBlur = 0;
+  $ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+  $ctx.font = "10px 'Press Start 2P'";
   $ctx.fillText(
-    "PAUSED",
-    $canvas.width / 2 - $pauseInfo.width / 2,
-    $canvas.height / 2,
-  );
-  const $unpauseInfo = $ctx.measureText("PRESS ENTER TO START");
-  $ctx.fillText(
-    "PRESS ENTER TO START",
-    $canvas.width / 2 - $unpauseInfo.width / 2,
+    "PRESS ENTER TO RESUME",
+    $canvas.width / 2,
     $canvas.height / 2 + 30,
   );
+
+  $ctx.textAlign = "left";
 }
 
 function draw() {
@@ -418,13 +711,34 @@ function draw() {
     return;
   }
 
+  if (state.slowMoFrames > 0) {
+    state.slowMoFrames--;
+    updateParticles();
+    drawBackground(state.current - 1);
+    drawBoxes();
+    drawDebris();
+    drawParticles();
+    drawScore();
+    updateComboBar();
+    updateProgressBar();
+    if (state.slowMoFrames === 0) {
+      state.mode = MODES.GAME_OVER;
+    }
+    window.requestAnimationFrame(draw);
+    return;
+  }
+
   if (state.mode === MODES.PAUSE) {
     drawPause();
   } else {
     drawBackground(state.current - 1);
     drawBoxes();
     drawDebris();
+    updateParticles();
+    drawParticles();
     drawScore();
+    updateComboBar();
+    updateProgressBar();
 
     if (state.mode === MODES.BOUNCE) {
       moveAndCheckCollision();

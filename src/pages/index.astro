@@ -7,21 +7,23 @@ import pkg from "../../package.json";
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/stacker/favicon.svg" />
     <meta name="viewport" content="width=device-width" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
     <title>Stacker Game</title>
     <style is:global>
       * {
-        font-family: Tahoma, Geneva, Verdana, sans-serif;
+        font-family: "VT323", monospace;
         user-select: none;
       }
       body,
       html {
         margin: 0;
-        background-color: #000;
-
+        background: linear-gradient(135deg, #1a0a2e 0%, #16213e 50%, #0f3460 100%);
+        min-height: 100dvh;
         display: flex;
         align-items: center;
         justify-content: center;
-
         height: 100dvh;
         width: 100%;
         overflow: hidden;
@@ -29,81 +31,246 @@ import pkg from "../../package.json";
 
       #controls {
         position: absolute;
-        color: #fff;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #e0e0e0;
+        font-family: "VT323", monospace;
         font-size: 20px;
-        font-weight: 600;
-        z-index: 1;
+        z-index: 10;
+        background: rgba(15, 25, 45, 0.9);
+        padding: 1rem 1.5rem;
+        border-radius: 16px;
+        border: 2px solid rgba(0, 212, 255, 0.3);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.2), 0 8px 32px rgba(0, 0, 0, 0.5);
+        text-align: left;
+      }
 
-        background-color: rgba(255, 255, 255, 0.6);
-        padding: 0.5rem;
-        border-radius: 10px;
+      #controls p {
+        margin: 0.3rem 0;
+      }
+
+      #controls p:first-child {
+        font-family: "Press Start 2P", cursive;
+        color: #00d4ff;
+        font-size: 10px;
+        margin-bottom: 0.8rem;
+        text-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
       }
 
       #game {
-        border: 1px solid #fff;
+        border-radius: 12px;
+        box-shadow:
+          0 0 0 2px rgba(255, 255, 255, 0.1),
+          0 20px 60px rgba(0, 0, 0, 0.5),
+          inset 0 0 80px rgba(0, 0, 0, 0.3);
       }
 
       .btn-restart {
         width: 300px;
         height: 40px;
         border: 0;
-        border-radius: 5px;
-        background-color: #fff;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #00d4ff, #0099cc);
         position: absolute;
         top: 60%;
         left: 50%;
         transform: translate(-50%, -50%);
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 600;
-        color: #333333;
+        color: #fff;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
       }
 
       .hidden {
         display: none;
       }
 
-      .score {
+      .hud-bar {
         position: absolute;
-        top: 10px;
-        left: 10px;
-        color: #fff;
-        font-size: 20px;
-        font-weight: 600;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: linear-gradient(180deg, rgba(10, 10, 30, 0.9) 0%, rgba(10, 10, 30, 0) 100%);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 12px 16px 0;
+        z-index: 10;
+        gap: 8px;
       }
+
+      .hud-left {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .hud-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+      }
+
+      .hud-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .score {
+        font-family: "Press Start 2P", cursive;
+        color: #00d4ff;
+        font-size: 12px;
+        text-shadow: 0 0 10px rgba(0, 212, 255, 0.8), 3px 3px 0 #000;
+        line-height: 1;
+      }
+
+      .score span {
+        font-size: 28px;
+      }
+
       .high-score {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        color: #fff;
-        font-size: 20px;
-        font-weight: 600;
+        font-family: "Press Start 2P", cursive;
+        color: #ff6b9d;
+        font-size: 12px;
+        text-shadow: 0 0 8px rgba(255, 107, 157, 0.8), 2px 2px 0 #000;
+        line-height: 1;
+      }
+
+      .high-score span {
+        font-size: 22px;
+      }
+
+      .combo-label {
+        font-family: "Press Start 2P", cursive;
+        color: #ffcc00;
+        font-size: 10px;
+        text-shadow: 0 0 8px rgba(255, 204, 0, 0.8), 2px 2px 0 #000;
+      }
+
+      .combo-bar-bg {
+        width: 90px;
+        height: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 5px;
+        overflow: hidden;
+      }
+
+      .combo-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #ffcc00, #ff9500);
+        border-radius: 6px;
+        transition: width 0.2s ease-out;
+        box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+      }
+
+      .combo-bar-fill.maxed {
+        background: linear-gradient(90deg, #ff6b9d, #ff3366);
+        box-shadow: 0 0 15px rgba(255, 107, 157, 0.7);
       }
 
       .game-container {
         position: relative;
         width: 460px;
         height: 800px;
-
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        text-align: center;
       }
 
       .version {
         position: absolute;
-        bottom: 10px;
+        bottom: 8px;
         right: 10px;
         color: rgba(255, 255, 255, 0.3);
-        font-size: 12px;
-        font-weight: 400;
+        font-family: "Press Start 2P", cursive;
+        font-size: 6px;
+        z-index: 5;
       }
 
       .pause {
-        top: 10px;
-        right: 10px;
         position: absolute;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(15, 25, 45, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        color: #fff;
+        font-size: 18px;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        backdrop-filter: blur(8px);
+        transition: all 0.2s ease;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+
+      .pause:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateX(-50%) scale(1.05);
+      }
+
+      .progress-container {
+        position: absolute;
+        right: 8px;
+        top: 70px;
+        bottom: 20px;
+        width: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .progress-bar-bg {
+        flex: 1;
+        width: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 4px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column-reverse;
+      }
+
+      .progress-bar-fill {
+        width: 100%;
+        background: linear-gradient(0deg, #00d4ff, #00ff88);
+        border-radius: 4px;
+        transition: height 0.3s ease-out;
+        box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+      }
+
+      .score-pop {
+        animation: scorePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      @keyframes scorePop {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.5); }
+        100% { transform: scale(1); }
+      }
+
+      .combo-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #ffcc00, #ff9500);
+        border-radius: 5px;
+        transition: width 0.2s ease-out;
+        box-shadow: 0 0 8px rgba(255, 204, 0, 0.5);
+      }
+
+      .combo-bar-fill.maxed {
+        background: linear-gradient(90deg, #ff6b9d, #ff3366);
+        box-shadow: 0 0 12px rgba(255, 107, 157, 0.7);
       }
 
       @media screen {
@@ -118,23 +285,42 @@ import pkg from "../../package.json";
       const $ = (selector: string): HTMLElement | null =>
         document.querySelector(selector);
 
-      // HTML Elements
       const $canvas = $("#game") as HTMLCanvasElement;
       const $score = $("#score-value") as HTMLSpanElement;
       const $highScore = $("#hscore-value") as HTMLSpanElement;
       const $controls = $("#controls") as HTMLDivElement;
       const $ctx = $canvas.getContext("2d") as CanvasRenderingContext2D;
+      const $combo = $("#combo-fill") as HTMLDivElement;
+      const $progress = $("#progress-fill") as HTMLDivElement;
 
-      restart($controls, $score, $highScore, $canvas, $ctx);
+      restart($controls, $score, $highScore, $canvas, $ctx, $combo, $progress);
     </script>
   </head>
   <body>
     <div class="game-container">
       <canvas id="game"></canvas>
-      <label class="score">Score <span id="score-value">0</span></label>
-      <label class="high-score"
-        >High Score <span id="hscore-value">0</span></label
-      >
+      <div class="hud-bar">
+        <div class="hud-left">
+          <div class="hud-row">
+            <label class="score">Score <span id="score-value">0</span></label>
+          </div>
+          <div class="hud-row">
+            <span class="combo-label">Combo</span>
+            <div class="combo-bar-bg">
+              <div class="combo-bar-fill" id="combo-fill" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="hud-right">
+          <label class="high-score">Best <span id="hscore-value">0</span></label>
+        </div>
+        <button class="pause" id="pause-btn">&#9208;</button>
+      </div>
+      <div class="progress-container">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-fill" style="height: 0%"></div>
+        </div>
+      </div>
       <div id="controls">
         <p>Controls</p>
         <p>Arrow Down: Fall</p>
