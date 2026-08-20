@@ -6,6 +6,7 @@
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro check && astro build",
+    "build:itch": "astro check && astro build && node fix-paths.js && mkdir -p stacker-temp && cp dist/index.html stacker-temp/ && mkdir -p stacker-temp/stacker && cp -r dist/_astro stacker-temp/stacker/ && cp -r dist/sounds stacker-temp/stacker/ && cp dist/favicon.svg stacker-temp/stacker/ && cd stacker-temp && zip -r ../stacker-itchio.zip . && cd .. && rm -rf stacker-temp",
     "preview": "astro preview",
     "astro": "astro"
   },
