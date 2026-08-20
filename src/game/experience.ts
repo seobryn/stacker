@@ -4,6 +4,7 @@ import {
   MODES,
   BG_SOUND,
   HIT_SOUND,
+  POWERUP_SOUND,
   type Box,
   type Debris,
   INIT_BOX_WIDTH,
@@ -624,6 +625,9 @@ function boxHit(currentBox: Box) {
         }
 
         state.comboThreshold += 1;
+        POWERUP_SOUND.pause();
+        POWERUP_SOUND.currentTime = 0;
+        POWERUP_SOUND.play();
       }
 
       state.combo = 0;
